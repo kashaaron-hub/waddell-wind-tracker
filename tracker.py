@@ -1,4 +1,4 @@
-pythonimport os
+import os
 import xml.etree.ElementTree as ET
 import urllib.request
 import re
@@ -72,4 +72,4 @@ if sfo and sac and buoy:
         client.messages.create(body=msg, from_=from_num, to=to_num)
         print("Conditions met. Twilio SMS alert sent.")
     else:
-        print(f"Holding. Grad: +{sfo_to_sac}mb, Buoy: {wspd}kts at {wdir}°
+        print(f"Holding. Grad: +{sfo_to_sac}mb, Buoy: {wspd}kts at {wdir}
