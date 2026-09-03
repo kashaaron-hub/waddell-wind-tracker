@@ -7,25 +7,32 @@ import socket
 from datetime import datetime
 from twilio.rest import Client
 
-# Force local DNS resolution to prevent runner dropout
+# --- CRITICAL FIX FOR GITHUB RUNNERS: FORCE IPV4 ONLY ---
+orig_getaddrinfo = socket.getaddrinfo
+def forced_ipv4_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    # Intercept the connection and replace requested family with IPv4 only
+    return orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+socket.getaddrinfo = forced_ipv4_getaddrinfo
+
+# Set global connection timeouts and remove strict handshakes
 socket.setdefaulttimeout(15)
 ssl_context = ssl._create_unverified_context()
 
 def get_nws_pressure(station_id):
     url = f"https://weather.gov{station_id}.xml"
     try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'})
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
         with urllib.request.urlopen(req, context=ssl_context) as response:
             root = ET.fromstring(response.read())
             return float(root.find('pressure_mb').text)
     except Exception as e:
-        print(f"NWS Gateway Drop ({station_id}): {e}")
+        print(f"NWS Connection Drop ({station_id}): {e}")
         return None
 
 def get_buoy_data(station_id):
-    url = f"https://noaa.gov{station_id}.txt"
+    url = f"https://www.ndbc.noaa.gov/data/realtime2/{station_id}.txt"
     try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'})
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
         with urllib.request.urlopen(req, context=ssl_context) as response:
             lines = response.read().decode('utf-8').split('\n')
             data_lines = [l for l in lines if l.strip() and not l.startswith('#')]
@@ -37,14 +44,14 @@ def get_buoy_data(station_id):
             gst_kts = round(float(latest_data[7]) * 1.94384, 1)
             return {"wdir": wdir, "wspd": wspd_kts, "gst": gst_kts}
     except Exception as e: 
-        print(f"Buoy Gateway Drop: {e}")
+        print(f"Buoy Parse Error: {e}")
         return None
 
 def get_marine_layer_depth():
     today = datetime.utcnow().strftime('%Y%m%d')
     url = f"https://uwyo.edu{today}12&TO={today}12&STNM=72493"
     try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'})
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
         with urllib.request.urlopen(req, context=ssl_context) as response:
             html = response.read().decode('utf-8')
             raw_data = re.findall(r'<PRE>(.*?)</PRE>', html, re.DOTALL)
@@ -54,13 +61,14 @@ def get_marine_layer_depth():
             for line in lines:
                 parts = line.split()
                 if len(parts) >= 3:
-                    hght_m, temp_c = float(parts[1]), float(parts[2])
+                    hght_m = float(parts[1])
+                    temp_c = float(parts[2])
                     if last_temp is not None and temp_c > last_temp:
                         return round(hght_m * 3.28084)
                     last_temp = temp_c
             return None
     except Exception as e:
-        print(f"Sounding Gateway Drop: {e}")
+        print(f"Sounding Connection Drop: {e}")
         return None
 
 account_sid = os.environ.get('TWILIO_ACCOUNT_SID')
