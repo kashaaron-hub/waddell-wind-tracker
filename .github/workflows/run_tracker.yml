@@ -1,0 +1,30 @@
+yamlname: Hourly Waddell Wind Scan
+
+on:
+  schedule:
+    - cron: '0 18-23,0-2 * * *'
+  workflow_dispatch: 
+
+jobs:
+  run-analysis:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository code
+      uses: actions/checkout@v3
+
+    - name: Set up Python environment
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: Execute Wind Tracker Script
+      env:
+        TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+        TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+        TWILIO_FROM_NUMBER: ${{ secrets.TWILIO_FROM_NUMBER }}
+        TWILIO_TO_NUMBER: ${{ secrets.TWILIO_TO_NUMBER }}
+      run: python tracker.py
