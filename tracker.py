@@ -18,12 +18,21 @@ def get_buoy_data(station_id):
     try:
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         lines = urllib.request.urlopen(req, timeout=10).read().decode('utf-8').split('\n')
-        latest_data = lines[2].split()
+        
+        # Strip structural header markings cleanly
+        data_lines = [l for l in lines if l.strip() and not l.startswith('#')]
+        if not data_lines: return None
+        
+        # Split the newest data line by any variable spacing
+        latest_data = data_lines[0].split()
+        
         wdir = int(latest_data[5])
         wspd_kts = round(float(latest_data[6]) * 1.94384, 1)
         gst_kts = round(float(latest_data[7]) * 1.94384, 1)
         return {"wdir": wdir, "wspd": wspd_kts, "gst": gst_kts}
-    except Exception: return None
+    except Exception as e: 
+        print(f"Buoy Parse Error: {e}")
+        return None
 
 def get_marine_layer_depth():
     today = datetime.utcnow().strftime('%Y%m%d')
