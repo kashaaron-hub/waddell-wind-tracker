@@ -1,4 +1,4 @@
-yamlname: Hourly Waddell Wind Scan
+name: Hourly Waddell Wind Scan2
 
 on:
   schedule:
