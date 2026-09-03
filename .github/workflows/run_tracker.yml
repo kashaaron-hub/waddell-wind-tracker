@@ -21,10 +21,12 @@ jobs:
       run: |
         pip install -r requirements.txt
 
-    - name: Execute Wind Tracker Script
+    - name: Execute Wind Tracker Script with Retry
       env:
         TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
         TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
         TWILIO_FROM_NUMBER: ${{ secrets.TWILIO_FROM_NUMBER }}
         TWILIO_TO_NUMBER: ${{ secrets.TWILIO_TO_NUMBER }}
-      run: python tracker.py
+      # This tries to run the tracker up to 3 times with a 10-second rest if the network drops
+      run: |
+        python tracker.py || (sleep 10 && python tracker.py) || (sleep 10 && python tracker.py)
