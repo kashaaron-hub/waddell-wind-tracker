@@ -3,29 +3,30 @@ import xml.etree.ElementTree as ET
 import urllib.request
 import re
 import ssl
+import socket
 from datetime import datetime
 from twilio.rest import Client
 
-# Create a relaxed SSL context to handle government certificate handshakes
+# Force local DNS resolution to prevent runner dropout
+socket.setdefaulttimeout(15)
 ssl_context = ssl._create_unverified_context()
 
 def get_nws_pressure(station_id):
     url = f"https://weather.gov{station_id}.xml"
     try:
-        # Standardize browser headers to bypass server firewalls
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
-        with urllib.request.urlopen(req, context=ssl_context, timeout=15) as response:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'})
+        with urllib.request.urlopen(req, context=ssl_context) as response:
             root = ET.fromstring(response.read())
             return float(root.find('pressure_mb').text)
     except Exception as e:
-        print(f"NWS Connection Error ({station_id}): {e}")
+        print(f"NWS Gateway Drop ({station_id}): {e}")
         return None
 
 def get_buoy_data(station_id):
-    url = f"https://www.ndbc.noaa.gov/data/realtime2/{station_id}.txt"
+    url = f"https://noaa.gov{station_id}.txt"
     try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
-        with urllib.request.urlopen(req, context=ssl_context, timeout=15) as response:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'})
+        with urllib.request.urlopen(req, context=ssl_context) as response:
             lines = response.read().decode('utf-8').split('\n')
             data_lines = [l for l in lines if l.strip() and not l.startswith('#')]
             if not data_lines: return None
@@ -36,15 +37,15 @@ def get_buoy_data(station_id):
             gst_kts = round(float(latest_data[7]) * 1.94384, 1)
             return {"wdir": wdir, "wspd": wspd_kts, "gst": gst_kts}
     except Exception as e: 
-        print(f"Buoy Parse Error: {e}")
+        print(f"Buoy Gateway Drop: {e}")
         return None
 
 def get_marine_layer_depth():
     today = datetime.utcnow().strftime('%Y%m%d')
     url = f"https://uwyo.edu{today}12&TO={today}12&STNM=72493"
     try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
-        with urllib.request.urlopen(req, context=ssl_context, timeout=15) as response:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'})
+        with urllib.request.urlopen(req, context=ssl_context) as response:
             html = response.read().decode('utf-8')
             raw_data = re.findall(r'<PRE>(.*?)</PRE>', html, re.DOTALL)
             if not raw_data: return None
@@ -59,7 +60,7 @@ def get_marine_layer_depth():
                     last_temp = temp_c
             return None
     except Exception as e:
-        print(f"Sounding Data Connection Error: {e}")
+        print(f"Sounding Gateway Drop: {e}")
         return None
 
 account_sid = os.environ.get('TWILIO_ACCOUNT_SID')
