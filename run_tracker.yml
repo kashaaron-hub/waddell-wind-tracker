@@ -1,4 +1,4 @@
-name: Hourly Waddell Wind Scan2
+name: Hourly Waddell Wind Scan
 
 on:
   schedule:
