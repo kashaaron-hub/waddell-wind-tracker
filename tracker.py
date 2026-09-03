@@ -7,14 +7,12 @@ import socket
 from datetime import datetime
 from twilio.rest import Client
 
-# --- CRITICAL FIX FOR GITHUB RUNNERS: FORCE IPV4 ONLY ---
+# Force standard IPv4 mapping to accommodate NOAA server routing
 orig_getaddrinfo = socket.getaddrinfo
 def forced_ipv4_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
-    # Intercept the connection and replace requested family with IPv4 only
     return orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
 socket.getaddrinfo = forced_ipv4_getaddrinfo
 
-# Set global connection timeouts and remove strict handshakes
 socket.setdefaulttimeout(15)
 ssl_context = ssl._create_unverified_context()
 
@@ -30,7 +28,7 @@ def get_nws_pressure(station_id):
         return None
 
 def get_buoy_data(station_id):
-    url = f"https://www.ndbc.noaa.gov/data/realtime2/{station_id}.txt"
+    url = f"https://noaa.gov{station_id}.txt"
     try:
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
         with urllib.request.urlopen(req, context=ssl_context) as response:
@@ -38,31 +36,33 @@ def get_buoy_data(station_id):
             data_lines = [l for l in lines if l.strip() and not l.startswith('#')]
             if not data_lines: return None
             
-            latest_data = data_lines[0].split()
-            wdir = int(latest_data[5])
-            wspd_kts = round(float(latest_data[6]) * 1.94384, 1)
-            gst_kts = round(float(latest_data[7]) * 1.94384, 1)
+            latest_data = data_lines.split()
+            wdir = int(latest_data)
+            wspd_kts = round(float(latest_data) * 1.94384, 1)
+            gst_kts = round(float(latest_data) * 1.94384, 1)
             return {"wdir": wdir, "wspd": wspd_kts, "gst": gst_kts}
     except Exception as e: 
         print(f"Buoy Parse Error: {e}")
         return None
 
 def get_marine_layer_depth():
-    today = datetime.utcnow().strftime('%Y%m%d')
-    url = f"https://uwyo.edu{today}12&TO={today}12&STNM=72493"
+    # Set to current date formatting requirements
+    current_date = datetime.utcnow().strftime('%Y-%m-%d')
+    # MIGRATION FIX: Swapped to the live active endpoint
+    url = f"https://weather.uwyo.edu/wsgi/sounding?datetime={current_date}%2012:00:00&id=72493&type=TEXT:LIST"
     try:
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
         with urllib.request.urlopen(req, context=ssl_context) as response:
             html = response.read().decode('utf-8')
             raw_data = re.findall(r'<PRE>(.*?)</PRE>', html, re.DOTALL)
             if not raw_data: return None
-            lines = raw_data[0].strip().split('\n')[4:]
+            lines = raw_data.strip().split('\n')[4:]
             last_temp = None
             for line in lines:
                 parts = line.split()
                 if len(parts) >= 3:
-                    hght_m = float(parts[1])
-                    temp_c = float(parts[2])
+                    hght_m = float(parts)
+                    temp_c = float(parts)
                     if last_temp is not None and temp_c > last_temp:
                         return round(hght_m * 3.28084)
                     last_temp = temp_c
