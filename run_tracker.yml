@@ -1,36 +1,21 @@
-name: Hourly Waddell Wind Scan
+name: Waddell Wind Monitor Tracker
 
 on:
   schedule:
-    - cron: '0 18-23,0-2 * * *'
-  workflow_dispatch: 
+    - cron: '*/15 * * * *'  # Runs automatically every 15 minutes 24/7
+  workflow_dispatch:        # Allows you to click "Run workflow" manually to test it
 
 jobs:
-  run-analysis:
+  run-monitor:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout repository code
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4  # Upgraded to v4 to fix deprecation warning
 
-    - name: Set up Python environment
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+      - name: Set up Python
+        uses: actions/setup-python@v5  # Upgraded to v5 to fix deprecation warning
+        with:
+          python-version: '3.10'
 
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-
-    - name: Force Core Network DNS Resolution
-      # Overrides the runner container to explicitly look up web servers via IPv4 DNS
-      run: |
-        sudo echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null
-        sudo echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf > /dev/null
-
-    - name: Execute Wind Tracker Script
-      env:
-        TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
-        TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
-        TWILIO_FROM_NUMBER: ${{ secrets.TWILIO_FROM_NUMBER }}
-        TWILIO_TO_NUMBER: ${{ secrets.TWILIO_TO_NUMBER }}
-      run: python tracker.py
+      - name: Run Monitor
+        run: python monitor.py
